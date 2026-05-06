@@ -8,7 +8,7 @@ import { useGetSubscriptionQuery } from "../../features/http-client/freemiumd-ap
 import ProgressBar from "./ProgressBar";
 import Button from "../../new-components/Button";
 import { useAppDispatch, useAppSelector } from "./store";
-import { openLink } from "./slice";
+import { openLink } from "../../features/config/slice";
 
 export default function Subscription({
   token,
@@ -23,7 +23,6 @@ export default function Subscription({
   });
 
   const dispatch = useAppDispatch();
-
   const authType = useAppSelector((state) => state.config.data.platformAuthType);
 
   const { upgradeUrl, stripeBillingUrl } = getEndpoints(useDevEndpoints);
@@ -41,23 +40,25 @@ export default function Subscription({
   if (isLoading || data === undefined) {
     return (
       <Container>
-        <Banner message="Loading..." />
+        <Banner message="Loading subscription status..." />
       </Container>
     );
   }
+
+  const currentAllowance = data.monthlyOp + data.bonusOp;
+  const currentUsage =
+    data.currentAuditUsage +
+    data.currentScanUsage +
+    data.currentGraphqlAuditUsage +
+    data.currentGraphqlScanUsage +
+    data.currentCaptureUsage;
+  const currentAllowanceLeftPercentage =
+    currentAllowance > 0 ? 1 - currentUsage / currentAllowance : 0;
 
   return (
     <Container>
       {authType === "anond-token" && (
         <>
-          <Section>
-            <Title>API Contract Generator</Title>
-            <Subtitle>Monthly operations left</Subtitle>
-            <Counters>
-              {data.monthlyCapture - data.currentCaptureUsage} / {data.monthlyCapture}
-            </Counters>
-            <ProgressBar label="" progress={1 - data.currentCaptureUsage / data.monthlyCapture} />
-          </Section>
           <Section>
             <Title>Subscription type: {data?.subscriptionKind}</Title>
             <Subtitle>Upgrade or manage your subscription plan</Subtitle>
@@ -90,17 +91,38 @@ export default function Subscription({
               )}
             </Counters>
           </Section>
+
+          <Section>
+            <Title>Registered email</Title>
+            <Counters>{data.userEmail}</Counters>
+          </Section>
+
+          <Section>
+            <Title>Subscription date</Title>
+            <Subtitle>Date when your monthly allowance started</Subtitle>
+            <Counters>{data.periodStart}</Counters>
+          </Section>
+
+          <Section>
+            <Title>Usage</Title>
+            <Subtitle>Monthly allowance left</Subtitle>
+            <Counters>
+              {currentAllowance - currentUsage} / {currentAllowance}
+            </Counters>
+            <ProgressBar label="" progress={currentAllowanceLeftPercentage} />
+          </Section>
         </>
       )}
+
       {authType === "api-token" && (
         <>
           <Section>
             <Title>Tenant Allowance</Title>
-            <Subtitle>Monthly operations left</Subtitle>
+            <Subtitle>Monthly allowance left</Subtitle>
             <Counters>
-              {data.monthlyCapture - data.currentCaptureUsage} / {data.monthlyCapture}
+              {currentAllowance - currentUsage} / {currentAllowance}
             </Counters>
-            <ProgressBar label="" progress={1 - data.currentCaptureUsage / data.monthlyCapture} />
+            <ProgressBar label="" progress={currentAllowanceLeftPercentage} />
           </Section>
           <Section>
             <Title>Subscription type: {data?.subscriptionKind}</Title>
