@@ -6,6 +6,7 @@ import { FileImport } from "../../icons";
 import { useAppDispatch, useAppSelector } from "./store";
 import { selectFiles } from "./slice";
 import GeneralError from "../../features/general-error/GeneralError";
+import Subscription from "./Subscription";
 
 export default function Start() {
   const dispatch = useAppDispatch();
@@ -59,6 +60,12 @@ export default function Start() {
         directly in the IDE. We recommend your run audit on your API contract to improve its quality
         and security.
       </p>
+
+      {token !== undefined && (
+        <SubscriptionDetails>
+          <Subscription token={token} useDevEndpoints={useDevEndpoints} />
+        </SubscriptionDetails>
+      )}
 
       <GeneralError />
     </Contents>
