@@ -54,13 +54,15 @@ export default function Subscription({
   const currentAllowanceLeftPercentage =
     currentAllowance > 0 ? 1 - currentUsage / currentAllowance : 0;
 
+  const isTrialAccount = data?.subscriptionKind.toLowerCase().includes("trial");
+
   return (
     <Container>
       <Section>
         <Title>Subscription type: {data?.subscriptionKind}</Title>
         <Subtitle>Upgrade or manage your subscription plan</Subtitle>
         <Counters>
-          {data.subscriptionKind === "free" && (
+          {isTrialAccount && (
             <Button
               onClick={(e) => {
                 e.preventDefault();
@@ -71,7 +73,7 @@ export default function Subscription({
               Upgrade
             </Button>
           )}
-          {data.subscriptionKind !== "free" && (
+          {!isTrialAccount && (
             <Button
               onClick={(e) => {
                 e.preventDefault();
@@ -100,14 +102,22 @@ export default function Subscription({
         <Counters>{data.periodStart}</Counters>
       </Section>
 
-      <Section>
-        <Title>Usage</Title>
-        <Subtitle>Monthly allowance left</Subtitle>
-        <Counters>
-          {currentAllowance - currentUsage} / {currentAllowance}
-        </Counters>
-        <ProgressBar label="" progress={currentAllowanceLeftPercentage} />
-      </Section>
+      {!isTrialAccount && (
+        <Section>
+          <Title>Usage</Title>
+          <Subtitle>Monthly allowance left</Subtitle>
+          <Counters>
+            {currentAllowance - currentUsage} / {currentAllowance}
+          </Counters>
+          <ProgressBar label="" progress={currentAllowanceLeftPercentage} />
+        </Section>
+      )}
+
+      {isTrialAccount && currentAllowance <= 0 && (
+        <Section>
+          <Title>This trial subscription is now finished.</Title>
+        </Section>
+      )}
     </Container>
   );
 }

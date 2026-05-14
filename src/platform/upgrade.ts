@@ -9,10 +9,9 @@ import { delay } from "../time-util";
 export async function offerUpgrade(): Promise<unknown> {
   await delay(100); // workaround for #133073
 
-  const message =
-    "You have insufficient usage allowance left to complete your request. As an alternative, upgrade to increase your allowances or wait until your monthly usage allowance renews.";
+  const message = "You have insufficient usage allowance left to complete your request.";
   return vscode.window
-    .showInformationMessage(message, { modal: true }, { title: "View allowances", id: "upgrade" })
+    .showInformationMessage(message, { modal: true }, { title: "View allowance", id: "upgrade" })
     .then((choice) => {
       if (choice?.id === "upgrade") {
         vscode.commands.executeCommand("openapi.showConfiguration");
@@ -27,7 +26,7 @@ export async function warnOperationScans(left: number) {
     .showInformationMessage(
       `You have ${left} per-operation API Scans left this month. Your usage allowance resets every month. Upgrade to increase allowances.`,
       { modal: false },
-      { title: "View subscription", id: "upgrade" }
+      { title: "View subscription", id: "upgrade" },
     )
     .then((choice) => {
       if (choice?.id === "upgrade") {
@@ -41,7 +40,7 @@ export async function warnOperationAudits(left: number) {
     .showInformationMessage(
       `You have ${left} per-operation Security Audits left this month. Your usage allowance resets every month. Upgrade to increase allowances.`,
       { modal: false },
-      { title: "View subscription", id: "upgrade" }
+      { title: "View subscription", id: "upgrade" },
     )
     .then((choice) => {
       if (choice?.id === "upgrade") {
