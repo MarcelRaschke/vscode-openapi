@@ -33,7 +33,7 @@ import {
 } from "../cli-ast";
 import { runScanWithDocker } from "./runtime/docker";
 import { runScanWithScandManager } from "./runtime/scand-manager";
-import { UPGRADE_WARN_LIMIT, offerUpgrade, warnOperationScans } from "../upgrade";
+import { offerUpgrade } from "../upgrade";
 import { formatException } from "../util";
 import { createDefaultConfigWithPlatform } from "./runtime/platform";
 import { createTempDirectory } from "../../util/fs";
@@ -404,13 +404,6 @@ async function runScan(
       }
 
       reportView.setTemporaryReportDirectory(result.tempScanDirectory);
-
-      if (
-        result.cli.remainingPerOperationScan !== undefined &&
-        result.cli.remainingPerOperationScan < UPGRADE_WARN_LIMIT
-      ) {
-        warnOperationScans(result.cli.remainingPerOperationScan);
-      }
 
       if (result.cli.scanLogs) {
         for (const entry of result.cli.scanLogs) {

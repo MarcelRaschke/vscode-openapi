@@ -18,7 +18,7 @@ import { EnvStore } from "../../envstore";
 import { ScanReportWebView } from "../../platform/scan/report-view";
 import { PlatformStore } from "../../platform/stores/platform-store";
 import { Logger } from "../../platform/types";
-import { UPGRADE_WARN_LIMIT, offerUpgrade, warnOperationScans } from "../../platform/upgrade";
+import { offerUpgrade } from "../../platform/upgrade";
 import { formatException } from "../../platform/util";
 import { loadConfig } from "../../util/config";
 import { executeHttpRequest } from "../../webapps/http-handler";
@@ -300,13 +300,6 @@ async function runScan(
       }
 
       reportView.setTemporaryReportDirectory(result.tempScanDirectory);
-
-      if (
-        result.cli.remainingPerOperationScan !== undefined &&
-        result.cli.remainingPerOperationScan < UPGRADE_WARN_LIMIT
-      ) {
-        warnOperationScans(result.cli.remainingPerOperationScan);
-      }
 
       if (result.cli.scanLogs) {
         for (const entry of result.cli.scanLogs) {

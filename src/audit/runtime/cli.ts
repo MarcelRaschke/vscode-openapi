@@ -12,7 +12,7 @@ import { Cache } from "../../cache";
 import { MappingNode } from "../../types";
 import { parseAuditReport } from "../audit";
 import { runAuditWithCliBinary } from "../../platform/cli-ast";
-import { UPGRADE_WARN_LIMIT, offerUpgrade, warnOperationAudits } from "../../platform/upgrade";
+import { offerUpgrade } from "../../platform/upgrade";
 import { Configuration } from "../../configuration";
 import { loadConfig } from "../../util/config";
 
@@ -26,7 +26,7 @@ export async function runCliAudit(
   configuration: Configuration,
   logger: Logger,
   progress: vscode.Progress<any>,
-  isFullAudit: boolean
+  isFullAudit: boolean,
 ): Promise<{ audit: Audit; tempAuditDirectory: string } | undefined> {
   const config = await loadConfig(configuration, secrets);
 
@@ -37,7 +37,7 @@ export async function runCliAudit(
     oas,
     tags,
     isFullAudit,
-    config.cliDirectoryOverride
+    config.cliDirectoryOverride,
   );
 
   if (error !== undefined) {
@@ -47,13 +47,6 @@ export async function runCliAudit(
     } else {
       throw new Error(`Unexpected error running Security Audit: ${JSON.stringify(error)}`);
     }
-  }
-
-  if (
-    result.cli.remainingPerOperationAudit !== undefined &&
-    result.cli.remainingPerOperationAudit < UPGRADE_WARN_LIMIT
-  ) {
-    warnOperationAudits(result.cli.remainingPerOperationAudit);
   }
 
   const audit = await parseAuditReport(cache, document, result.audit, mapping);
