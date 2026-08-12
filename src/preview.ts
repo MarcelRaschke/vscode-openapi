@@ -32,7 +32,7 @@ const kinds: Record<vscode.ColorThemeKind, ChangeThemeMessage["payload"]["kind"]
 export function activate(
   context: vscode.ExtensionContext,
   cache: Cache,
-  configuration: Configuration
+  configuration: Configuration,
 ) {
   const previews: Previews = {};
 
@@ -71,13 +71,13 @@ export function activate(
   vscode.commands.registerTextEditorCommand(
     "openapi.previewRedoc",
     async (textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit) =>
-      startPreview(context, cache, previews, "redoc", textEditor.document)
+      startPreview(context, cache, previews, "redoc", textEditor.document),
   );
 
   vscode.commands.registerTextEditorCommand(
     "openapi.previewSwaggerUI",
     async (textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit) =>
-      startPreview(context, cache, previews, "swaggerui", textEditor.document)
+      startPreview(context, cache, previews, "swaggerui", textEditor.document),
   );
 
   vscode.commands.registerTextEditorCommand(
@@ -88,8 +88,8 @@ export function activate(
         cache,
         previews,
         configuration.get<string>("defaultPreviewRenderer") as PreviewType,
-        textEditor.document
-      )
+        textEditor.document,
+      ),
   );
 }
 
@@ -98,7 +98,7 @@ async function startPreview(
   cache: Cache,
   previews: Previews,
   renderer: PreviewType,
-  document: vscode.TextDocument
+  document: vscode.TextDocument,
 ) {
   try {
     const bundle = await cache.getDocumentBundle(document);
@@ -118,7 +118,7 @@ async function showPreview(
   previews: Previews,
   name: PreviewType,
   documentUri: vscode.Uri,
-  bundle: Bundle
+  bundle: Bundle,
 ) {
   const preview = previews[name];
   if (preview) {
@@ -137,7 +137,7 @@ async function showPreview(
       previews[name] = undefined;
     },
     undefined,
-    context.subscriptions
+    context.subscriptions,
   );
 
   vscode.window.onDidChangeActiveColorTheme((e) => {
@@ -162,7 +162,7 @@ async function showPreview(
 function buildWebviewPanel(
   context: vscode.ExtensionContext,
   name: string,
-  title: string
+  title: string,
 ): Promise<vscode.WebviewPanel> {
   const panel = vscode.window.createWebviewPanel(
     `openapiPreview-${name}`,
@@ -172,7 +172,7 @@ function buildWebviewPanel(
       enableScripts: true,
       retainContextWhenHidden: true,
       enableFindWidget: true,
-    }
+    },
   );
 
   return new Promise((resolve, reject) => {
@@ -184,18 +184,18 @@ function buildWebviewPanel(
         }
       },
       undefined,
-      context.subscriptions
+      context.subscriptions,
     );
 
     const index = panel.webview.asWebviewUri(
       vscode.Uri.file(
-        path.join(context.extensionPath, "webview", "generated", "preview", name, "main.js")
-      )
+        path.join(context.extensionPath, "webview", "generated", "preview", name, "main.js"),
+      ),
     );
     const style = panel.webview.asWebviewUri(
       vscode.Uri.file(
-        path.join(context.extensionPath, "webview", "generated", "preview", name, "style.css")
-      )
+        path.join(context.extensionPath, "webview", "generated", "preview", name, "style.css"),
+      ),
     );
 
     panel.webview.html = getWebviewContent(panel.webview, index, style);
@@ -226,7 +226,7 @@ function getWebviewContent(webview: vscode.Webview, index: vscode.Uri, style: vs
   </head>
   <body>
 	<div id="root"></div>
-	<script src="${index}"></script>
+  <script type="module" src="${index}"></script>
   </body>
   </html>`;
 }
