@@ -10,12 +10,10 @@ import { NamingConvention } from "@xliic/common/platform";
 import { ApiAuditReport, Category, SearchCollectionsResponse } from "./types";
 import {
   Api,
-  ListCollectionsResponse,
   ListApisResponse,
   CollectionData,
   PlatformConnection,
   Logger,
-  CollectionFilter,
   UserData,
   Tag,
 } from "./types";
@@ -60,31 +58,16 @@ function gotOptions(
   };
 }
 
-export async function listCollections(
-  filter: CollectionFilter | undefined,
-  options: PlatformConnection,
-  logger: Logger
-): Promise<ListCollectionsResponse> {
-  try {
-    const listOption = filter?.owner ?? "ALL";
-    const { body } = await got(
-      `api/v2/collections?listOption=${listOption}&perPage=0`,
-      gotOptions("GET", options, logger)
-    );
-    return <ListCollectionsResponse>body;
-  } catch (ex: any) {
-    throw new Error(
-      "Unable to list collections, please check your 42Crunch credentials: " + ex.message
-    );
-  }
-}
-
 export async function searchCollections(
   collectionName: string,
   options: PlatformConnection,
-  logger: Logger
+  logger: Logger,
+  pagination?: { page: number; perPage: number }
 ): Promise<SearchCollectionsResponse> {
-  const params = { collectionName };
+  const params = {
+    collectionName,
+    ...(pagination ? { ...pagination, order: "default", sort: "default" } : {}),
+  };
   const { body } = <any>await got(`api/v1/search/collections`, {
     ...gotOptions("GET", options, logger),
     searchParams: params,

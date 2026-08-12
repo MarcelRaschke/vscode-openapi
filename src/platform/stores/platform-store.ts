@@ -14,7 +14,6 @@ import {
   getDataDictionaries,
   getDataDictionaryFormats,
   listApis,
-  listCollections,
   readApi,
   readAuditReport,
   readCollection,
@@ -43,6 +42,7 @@ import {
   ApiFilter,
   CollectionData,
   CollectionFilter,
+  CollectionSearchEntry,
   Logger,
   PlatformConnection,
   UserData,
@@ -185,36 +185,26 @@ export class PlatformStore {
     filter: CollectionFilter | undefined,
     limit: number
   ): Promise<CollectionsView> {
-    const response = await listCollections(filter, this.getConnection(), this.logger);
+    // the collections matching the name are searched for on the server,
+    // only the first 'limit' of them are requested
+    const response = await searchCollections(
+      filter?.name ?? "",
+      this.getConnection(),
+      this.logger,
+      { page: 1, perPage: limit }
+    );
 
-    const filtered = response.list.filter((collection) => {
-      if (filter) {
-        return filter.name
-          ? collection.desc.name.toLowerCase().includes(filter.name.toLowerCase())
-          : true;
-      }
-      return true;
-    });
-
-    const hasMore = filtered.length > limit;
+    const collections = response.list.map(toCollectionData);
+    const total = response.num ?? collections.length;
 
     return {
-      hasMore,
-      collections: filtered.slice(0, limit),
+      hasMore: total > collections.length,
+      collections,
     };
   }
 
   async searchCollections(name: string) {
     return searchCollections(name, this.getConnection(), this.logger);
-  }
-
-  async getAllCollections(): Promise<CollectionData[]> {
-    const response = await listCollections(
-      { name: undefined, owner: "ALL" },
-      this.getConnection(),
-      this.logger
-    );
-    return response.list;
   }
 
   async createCollection(name: string): Promise<CollectionData> {
@@ -651,6 +641,20 @@ export class PlatformStore {
       return collection.desc.id;
     }
   }
+}
+
+function toCollectionData(entry: CollectionSearchEntry): CollectionData {
+  return {
+    desc: {
+      id: entry.id,
+      name: entry.name,
+      technicalName: entry.technicalName,
+    },
+    summary: {
+      apis: entry.apiCount,
+      writeApis: entry.writeApis,
+    },
+  };
 }
 
 export function getMandatoryTags(configuration: Configuration): string[] {

@@ -10,12 +10,27 @@ export const MAX_NAME_LEN = 2048;
 export const ASSESSMENT_MAX_WAIT = 60000;
 export const ASSESSMENT_RETRY = 5000;
 
-export interface ListCollectionsResponse {
-  list: CollectionData[];
+export interface SearchCollectionsResponse {
+  list: CollectionSearchEntry[];
+  // the total number of the matching collections, may exceed the number of the returned ones
+  num?: number;
+  pagination?: {
+    page: number;
+    perPage: number;
+    totalPages: number;
+  };
 }
 
-export interface SearchCollectionsResponse {
-  list: { id: string; write: boolean; writeApis: boolean; read: boolean; deleteApis: boolean }[];
+// an entry of the collection search response, a flat structure unlike CollectionData
+export interface CollectionSearchEntry {
+  id: string;
+  name: string;
+  technicalName: string;
+  apiCount: number;
+  read: boolean;
+  write: boolean;
+  writeApis: boolean;
+  deleteApis: boolean;
 }
 
 export interface ListApisResponse {
@@ -61,8 +76,8 @@ export interface CollectionData {
     apis: number;
     writeApis: boolean;
   };
-  teamCounter: number;
-  userCounter: number;
+  teamCounter?: number;
+  userCounter?: number;
 }
 
 export interface UserData {
