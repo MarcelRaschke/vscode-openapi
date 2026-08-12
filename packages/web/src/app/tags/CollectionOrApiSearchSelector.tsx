@@ -23,7 +23,7 @@ export function CollectionOrApiSearchSelector({
   return (
     <SearchSelector
       options={options}
-      placeholder={(type === "collection" ? "Collection" : "API") + " name or UUID"}
+      placeholder={(type === "collection" ? "Collection" : "API") + " name"}
       keepOpen={false}
       applyHoverCss={true}
       filter={(
