@@ -12,10 +12,13 @@ export function CollectionOrApiSearchSelector({
   type,
   options,
   onItemSelected,
+  onInputValueChanged,
 }: {
   type: "collection" | "api";
   options: SelectOption<ResponseEntry>[];
   onItemSelected: (item: SelectOption<ResponseEntry>) => void;
+  // if set, the options are searched for on the server and are not filtered locally
+  onInputValueChanged?: (inputValue: string) => void;
 }) {
   return (
     <SearchSelector
@@ -27,6 +30,9 @@ export function CollectionOrApiSearchSelector({
         items: SelectOption<ResponseEntry>[],
         inputValue: string
       ): SelectOption<ResponseEntry>[] => {
+        if (onInputValueChanged !== undefined) {
+          return items;
+        }
         const searchValue = inputValue.toLowerCase();
         return items.filter((item) => {
           return (
@@ -60,6 +66,7 @@ export function CollectionOrApiSearchSelector({
         );
       }}
       onItemSelected={onItemSelected}
+      onInputValueChanged={onInputValueChanged}
     />
   );
 }

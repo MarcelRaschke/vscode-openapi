@@ -1,3 +1,4 @@
+import { skipToken } from "@reduxjs/toolkit/query/react";
 import React, { useEffect } from "react";
 import styled from "styled-components";
 
@@ -7,19 +8,25 @@ import { ThemeColorVariables } from "@xliic/common/theme";
 import { ErrorBanner } from "../../components/Banner";
 import {
   ApiResponseEntry,
+  CollectionSearchResult,
   refreshOptions,
   ResponseEntry,
   TagResponseEntry,
   useGetApisFromCollectionQuery,
-  useGetCollectionsQuery,
+  useGetCollectionQuery,
+  useSearchCollectionsQuery,
 } from "../../features/http-client/platform-api";
 import { Tags, TrashCan } from "../../icons";
 import { CollectionOrApiSearchSelector } from "./CollectionOrApiSearchSelector";
 import { SelectOption } from "./SearchSelector";
 import { saveTags, saveTagsInStateOnly } from "./slice";
 import { useAppDispatch } from "./store";
+import { useDebounce } from "./useDebounce";
 
 type SelectOptionState = SelectOption<ResponseEntry> | undefined;
+
+// how long to wait for the user to stop typing before searching for collections
+const SEARCH_DELAY = 300;
 
 export function ApiPanel({
   targetFileName,
@@ -40,14 +47,12 @@ export function ApiPanel({
     setColOption(undefined);
     setApiOption(undefined);
   }, [targetFileName]);
-  const showApiSelector = colOption || apiEntry?.collectionId;
+  const collectionId = colOption ? colOption.value.desc.id : apiEntry?.collectionId;
   return (
     <HeaderContainer>
-      <SelectPanel
-        type="collection"
+      <CollectionSelectPanel
         apiEntry={apiEntry}
-        selectedOptionId={colOption ? colOption.id : apiEntry?.collectionId}
-        getQueryParameter={() => ""}
+        selectedOption={colOption}
         onOptionRemoved={(): void => {
           setApiOption(undefined);
           setColOption(undefined);
@@ -58,16 +63,13 @@ export function ApiPanel({
           setColOption(option);
           dispatch(saveTags({ [targetFileName]: null }));
         }}
-      ></SelectPanel>
+      ></CollectionSelectPanel>
 
-      {showApiSelector && (
-        <SelectPanel
-          type="api"
+      {collectionId && (
+        <ApiSelectPanel
           apiEntry={apiEntry}
+          collectionId={collectionId}
           selectedOptionId={apiOption ? apiOption.id : apiEntry?.apiId}
-          getQueryParameter={() =>
-            (colOption ? colOption.value.desc.id : apiEntry?.collectionId) as string
-          }
           onOptionRemoved={(): void => {
             setApiOption(undefined);
             const tagData: TagData = {};
@@ -91,31 +93,129 @@ export function ApiPanel({
             } as ApiEntry;
             dispatch(saveTags(tagData));
           }}
-        ></SelectPanel>
+        ></ApiSelectPanel>
       )}
     </HeaderContainer>
   );
 }
 
-function SelectPanel({
-  type,
+function CollectionSelectPanel({
   apiEntry,
-  selectedOptionId,
-  getQueryParameter,
+  selectedOption,
   onOptionRemoved,
   onOptionSelected,
 }: {
-  type: "collection" | "api";
   apiEntry: ApiEntry | undefined;
-  selectedOptionId: string | undefined;
-  getQueryParameter: () => string;
+  selectedOption: SelectOptionState;
   onOptionRemoved: () => void;
   onOptionSelected: (option: SelectOption<ResponseEntry>) => void;
 }) {
-  const { data, error, isLoading } =
-    type === "collection"
-      ? useGetCollectionsQuery(undefined, refreshOptions)
-      : useGetApisFromCollectionQuery(getQueryParameter(), refreshOptions);
+  const [searchValue, setSearchValue] = React.useState("");
+  const search = useDebounce(searchValue, SEARCH_DELAY);
+  const { data, error, isFetching } = useSearchCollectionsQuery(search, refreshOptions);
+
+  // keep displaying the previous search results while the new ones are being fetched
+  const [lastResult, setLastResult] = React.useState<CollectionSearchResult | undefined>(undefined);
+  useEffect(() => {
+    if (data !== undefined) {
+      setLastResult(data);
+    }
+  }, [data]);
+  const result = data ?? lastResult;
+
+  // the collection selected earlier in the IDE may be missing from the search results,
+  // read it separately to display its current name and to check that it still exists
+  const savedCollectionId = selectedOption === undefined ? apiEntry?.collectionId : undefined;
+  const {
+    data: savedCollection,
+    error: savedCollectionError,
+    isFetching: isSavedCollectionFetching,
+  } = useGetCollectionQuery(savedCollectionId ? savedCollectionId : skipToken, refreshOptions);
+
+  const options: SelectOption<ResponseEntry>[] = (result?.collections || [])
+    // Do not suggest the option if it is already selected
+    .filter((entry) => entry.desc.id !== selectedOption?.id)
+    .map((entry) => ({
+      id: entry.desc.id,
+      value: entry,
+      label: entry.desc.name,
+    }));
+
+  const requestError = error || savedCollectionError;
+  const hasMore = result !== undefined && result.total > result.collections.length;
+
+  return (
+    <Container>
+      <Header>
+        <HeaderSpan>Collection</HeaderSpan>
+        <SearchContainer>
+          <CollectionOrApiSearchSelector
+            type="collection"
+            options={options}
+            onItemSelected={onOptionSelected}
+            onInputValueChanged={setSearchValue}
+          />
+          {isFetching && <SearchNoteSpan>Searching for collections...</SearchNoteSpan>}
+          {!isFetching && hasMore && (
+            <SearchNoteSpan>
+              {`Showing ${result.collections.length} of ${result.total} matching collections, ` +
+                `refine your search`}
+            </SearchNoteSpan>
+          )}
+        </SearchContainer>
+      </Header>
+      {!requestError && selectedOption && (
+        <HeaderOptionPanel
+          id={selectedOption.value.desc.id}
+          name={selectedOption.label}
+          isLoaded={true}
+          onOptionRemoved={onOptionRemoved}
+        />
+      )}
+      {!requestError &&
+        savedCollectionId &&
+        !isSavedCollectionFetching &&
+        (savedCollection ? (
+          <HeaderOptionPanel
+            id={savedCollection.desc.id}
+            name={savedCollection.desc.name}
+            isLoaded={true}
+            onOptionRemoved={onOptionRemoved}
+          />
+        ) : (
+          <HeaderOptionPanel
+            id={savedCollectionId}
+            name={apiEntry?.collectionName as string}
+            error={"This collection is not found on the server"}
+            isLoaded={false}
+            onOptionRemoved={onOptionRemoved}
+          />
+        ))}
+      <HeaderError>
+        {requestError && (
+          <ErrorBanner message={"Failed to load collections"}>
+            HTTPError: Response code {requestError.code} ({requestError.message})
+          </ErrorBanner>
+        )}
+      </HeaderError>
+    </Container>
+  );
+}
+
+function ApiSelectPanel({
+  apiEntry,
+  collectionId,
+  selectedOptionId,
+  onOptionRemoved,
+  onOptionSelected,
+}: {
+  apiEntry: ApiEntry | undefined;
+  collectionId: string;
+  selectedOptionId: string | undefined;
+  onOptionRemoved: () => void;
+  onOptionSelected: (option: SelectOption<ResponseEntry>) => void;
+}) {
+  const { data, error, isLoading } = useGetApisFromCollectionQuery(collectionId, refreshOptions);
   let options: SelectOption<ResponseEntry>[] = [];
   if (data) {
     data.forEach((entry) =>
@@ -134,15 +234,11 @@ function SelectPanel({
   return (
     <Container>
       <Header>
-        {isLoading && (
-          <HeaderSpan>
-            {"Loading " + (type === "collection" ? "collections" : "APIs") + " from the server..."}
-          </HeaderSpan>
-        )}
-        {!isLoading && <HeaderSpan>{type === "collection" ? "Collection" : "API"}</HeaderSpan>}
+        {isLoading && <HeaderSpan>{"Loading APIs from the server..."}</HeaderSpan>}
+        {!isLoading && <HeaderSpan>API</HeaderSpan>}
         {!isLoading && (
           <CollectionOrApiSearchSelector
-            type={type}
+            type="api"
             options={options}
             onItemSelected={onOptionSelected}
           />
@@ -150,32 +246,25 @@ function SelectPanel({
       </Header>
       {!isLoading && !error && option && (
         <HeaderOptionPanel
-          id={`UUID: ${option.value.desc.id}`}
+          id={option.value.desc.id}
           name={option.label}
-          tags={type === "collection" ? undefined : (option.value as ApiResponseEntry).tags}
+          tags={(option.value as ApiResponseEntry).tags}
           isLoaded={true}
           onOptionRemoved={onOptionRemoved}
         />
       )}
-      {!isLoading &&
-        !error &&
-        !option &&
-        apiEntry &&
-        ((type === "collection" && apiEntry.collectionId) ||
-          (type === "api" && apiEntry.apiId)) && (
-          <HeaderOptionPanel
-            id={type === "collection" ? apiEntry.collectionId : apiEntry.apiId}
-            name={type === "collection" ? apiEntry.collectionName : apiEntry.apiName}
-            error={`This ${type} is not found on the server`}
-            isLoaded={false}
-            onOptionRemoved={onOptionRemoved}
-          />
-        )}
+      {!isLoading && !error && !option && apiEntry && apiEntry.apiId && (
+        <HeaderOptionPanel
+          id={apiEntry.apiId}
+          name={apiEntry.apiName}
+          error={"This api is not found on the server"}
+          isLoaded={false}
+          onOptionRemoved={onOptionRemoved}
+        />
+      )}
       <HeaderError>
         {error && (
-          <ErrorBanner
-            message={"Failed to load " + (type === "collection" ? "collections" : "APIs")}
-          >
+          <ErrorBanner message={"Failed to load APIs"}>
             HTTPError: Response code {error.code} ({error.message})
           </ErrorBanner>
         )}
@@ -291,6 +380,17 @@ export const HeaderOptionContainerAction = styled.div`
   display: flex;
   flex-direction: column;
   justify-content: center;
+`;
+
+const SearchContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+`;
+
+const SearchNoteSpan = styled.span`
+  font-size: 90%;
+  color: var(${ThemeColorVariables.disabledForeground});
 `;
 
 const HeaderError = styled.div`

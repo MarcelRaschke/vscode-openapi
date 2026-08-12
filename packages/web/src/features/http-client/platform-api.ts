@@ -9,6 +9,9 @@ export const refreshOptions = {
   pollingInterval: 1000 * 60 * 10, // refresh every 10 minutes
 };
 
+// the number of collections returned by a single collection search request
+export const COLLECTION_SEARCH_LIMIT = 10;
+
 export const platformApi = createApi({
   reducerPath: "platformApi",
   baseQuery: webappBaseQuery,
@@ -21,9 +24,18 @@ export const platformApi = createApi({
       query: () => `api/v2/tags`,
       transformResponse: extractList,
     }),
-    getCollections: builder.query<CollectionResponseEntry[], void>({
-      query: () => `api/v2/collections?listOption=ALL&perPage=0`,
-      transformResponse: extractList,
+    searchCollections: builder.query<CollectionSearchResult, string>({
+      query: (collectionName: string) =>
+        `api/v1/search/collections?page=1&perPage=${COLLECTION_SEARCH_LIMIT}` +
+        `&order=default&sort=default&collectionName=${encodeURIComponent(collectionName)}`,
+      transformResponse: toCollectionSearchResult,
+    }),
+    getCollection: builder.query<CollectionResponseEntry | undefined, string>({
+      query: (collectionId: string) => `api/v1/collections/${collectionId}`,
+      // the platform replies with an error payload rather than a collection
+      // if the collection does not exist or is not accessible
+      transformResponse: (response: any) =>
+        response?.desc?.id ? (response as CollectionResponseEntry) : undefined,
     }),
     getApisFromCollection: builder.query<ApiResponseEntry[], string>({
       query: (collectionId: string) =>
@@ -35,6 +47,24 @@ export const platformApi = createApi({
 
 function extractList(response: any) {
   return response.list;
+}
+
+function toCollectionSearchResult(response: any): CollectionSearchResult {
+  const list: CollectionSearchResponseEntry[] = response?.list ?? [];
+  return {
+    collections: list.map((entry) => ({
+      desc: {
+        id: entry.id,
+        name: entry.name,
+        technicalName: entry.technicalName,
+      },
+      summary: {
+        apis: entry.apiCount,
+        writeApis: entry.writeApis,
+      },
+    })),
+    total: response?.num ?? list.length,
+  };
 }
 
 async function webappBaseQuery(args: any, { signal, dispatch, getState }: any, extraOptions: any) {
@@ -77,8 +107,26 @@ export type CollectionResponseEntry = {
     apis: number;
     writeApis: boolean;
   };
-  teamCounter: number;
-  userCounter: number;
+};
+
+// an entry of the "api/v1/search/collections" response, a flat structure
+// unlike the one returned by the other collection endpoints
+export type CollectionSearchResponseEntry = {
+  id: string;
+  name: string;
+  technicalName: string;
+  apiCount: number;
+  read: boolean;
+  write: boolean;
+  writeApis: boolean;
+  deleteApis: boolean;
+};
+
+export type CollectionSearchResult = {
+  collections: CollectionResponseEntry[];
+  // the total number of the matching collections, may exceed
+  // the number of the returned ones
+  total: number;
 };
 
 export type ApiResponseEntry = {
@@ -152,6 +200,7 @@ export type Category = {
 export const {
   useGetTagsQuery,
   useGetCategoriesQuery,
-  useGetCollectionsQuery,
+  useSearchCollectionsQuery,
+  useGetCollectionQuery,
   useGetApisFromCollectionQuery,
 } = platformApi;
