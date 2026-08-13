@@ -23,11 +23,20 @@ export class FavoriteCollectionsNode extends AbstractExplorerNode {
 
   async getChildren(): Promise<ExplorerNode[]> {
     const favorites = this.favoritesStore.getFavoriteCollectionIds();
-    const collections = await this.store.getAllCollections();
-    const children = collections
-      .filter((collection) => favorites.includes(collection.desc.id))
+    const collections = await Promise.all(favorites.map((id) => this.readCollection(id)));
+    return collections
+      .filter((collection): collection is CollectionData => collection !== undefined)
       .map((collection) => new FavoriteCollectionNode(this, this.store, collection));
-    return children;
+  }
+
+  // a favorite collection may have been deleted or made inaccessible on the platform,
+  // skip the ones which cannot be read
+  private async readCollection(collectionId: string): Promise<CollectionData | undefined> {
+    try {
+      return await this.store.getCollection(collectionId);
+    } catch (ex) {
+      return undefined;
+    }
   }
 }
 

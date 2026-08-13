@@ -18,6 +18,7 @@ export function SearchSelector<T>({
   filter,
   renderer,
   onItemSelected,
+  onInputValueChanged,
 }: {
   options: SelectOption<T>[];
   placeholder: string;
@@ -26,6 +27,9 @@ export function SearchSelector<T>({
   filter: (items: SelectOption<T>[], inputValue: string) => SelectOption<T>[];
   renderer: (item: SelectOption<T>, index: number, inputValue: string) => JSX.Element;
   onItemSelected: (item: SelectOption<T>) => void;
+  // notified of every change of the input value, to let the options
+  // be searched for on the server rather than filtered locally
+  onInputValueChanged?: (inputValue: string) => void;
 }) {
   const [inputValue, setInputValue] = React.useState("");
 
@@ -62,11 +66,13 @@ export function SearchSelector<T>({
             onItemSelected(newSelectedItem);
             if (!keepOpen) {
               setInputValue("");
+              onInputValueChanged?.("");
             }
           }
           break;
         case useCombobox.stateChangeTypes.InputChange:
           setInputValue(newInputValue || "");
+          onInputValueChanged?.(newInputValue || "");
           break;
         default:
           break;
