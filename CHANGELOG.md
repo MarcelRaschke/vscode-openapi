@@ -1,5 +1,10 @@
 # Changelog
 
+
+## Version 5.9.0 (August 20, 2026)
+
+- Fix performance issue when loading large collection lists
+
 ## Version 5.8.0 (July 20, 2026)
 
 - Add mTLS to supported authentication schemes for Scan 
