@@ -108,12 +108,23 @@ export function securityAdded(
   if (scanconfAuthDetails.length === 0) {
     return [];
   }
-  return getSecuritySchemes(oas)
-    .filter((schema) => !scanconfAuthDetails[0][schema])
-    .map((schema) => ({
-      type: "security-added",
-      schema,
-    }));
+  return (
+    getSecuritySchemes(oas)
+      // filter out mtls security schemes, as they are handled differently in scanconf
+      .filter((schema) => isNotMtls(oas, schema))
+      .filter((schema) => !scanconfAuthDetails[0][schema])
+      .map((schema) => ({
+        type: "security-added",
+        schema,
+      }))
+  );
+}
+
+function isNotMtls(oas: BundledSwaggerOrOasSpec, schema: string): boolean {
+  if (isOpenapi(oas) && (oas.openapi === "3.1.0" || oas.openapi === "3.1.1")) {
+    return oas.components?.securitySchemes?.[schema]?.type !== "mutualTLS";
+  }
+  return false;
 }
 
 export function getSecuritySchemes(oas: BundledSwaggerOrOasSpec): string[] {
